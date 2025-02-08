@@ -312,8 +312,11 @@ https://www.tooplate.com/view/2097-pop
                           <div class="row">
                             <div class="col-12">
                               <h6>Upload a Document</h6>
-                              <input type="file" id="fileInput" />
-                              <button onclick="uploadFile()">Upload</button>
+                              <form id="uploadForm">
+                                <input type="file" id="fileInput">
+                                <button type="button" onclick="uploadFile()">Upload</button>
+                              </form>
+                            
                               <br>
                               <br>
                               <h6>Stored Documents</h6>
@@ -327,12 +330,14 @@ https://www.tooplate.com/view/2097-pop
                                 // Function to Upload File
                                 async function uploadFile() {
                                     const fileInput = document.getElementById("fileInput");
-                                    if (fileInput.files.length === 0) {
-                                        alert("Please select a file.");
-                                        return;
+                                    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                                      alert("Please select a file.");
+                                      console.error("No file selected or input not found.");
+                                      return;
                                     }
                         
                                     const file = fileInput.files[0];
+                                    console.log("Selected file:", file.name, file.size, file.type);
                                     const uploadUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${file.name}?${sasToken}`;
                         
                                     const response = await fetch(uploadUrl, {
