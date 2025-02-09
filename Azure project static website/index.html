@@ -322,6 +322,11 @@ https://www.tooplate.com/view/2097-pop
                               <h6>Stored Documents</h6>
                               <ul id="fileList"></ul>
                               <script>
+                                const storageAccount = "disep";
+                                const containerName = "documents";
+                                const sasToken = "sp=rwdl&st=2025-02-09T12:09:57Z&se=2025-04-10T19:09:57Z&spr=https&sv=2022-11-02&sr=c&sig=P1GoT0hKmnXdQzZbFV3K6ZcaL63L3%2BcNBxVEidNphnE%3D";
+                                
+                                
                                 // Select the form and file input
                                 const form = document.getElementById("fileUploadForm");
                                 const fileInput = document.getElementById("fileInput");
