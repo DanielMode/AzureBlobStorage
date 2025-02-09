@@ -326,108 +326,98 @@ https://www.tooplate.com/view/2097-pop
                                 const storageAccount = "staticproj";
                                 const containerName = "documents";
                                 const sasToken = "sp=rwdl&st=2025-02-08T20:04:20Z&se=2025-02-11T04:04:20Z&spr=https&sv=2022-11-02&sr=c&sig=cskzFZzj6UM2JohO21%2BH7Eu4j9L6RkfYhY3%2FuYLjZlM%3D"; // Get from Azure Portal
-                              
+                            
                                 // Select the form and file input
                                 const form = document.getElementById("fileUploadForm");
                                 const fileInput = document.getElementById("fileInput");
-                              
+                            
                                 // Add event listener to handle the form submission
                                 form.addEventListener("submit", async (event) => {
-                                  event.preventDefault(); // Prevent the form from submitting the usual way
-                              
-                                  // Check if a file is selected
-                                  if (!fileInput.files || fileInput.files.length === 0) {
-                                    alert("Please select a file.");
-                                    console.error("No file selected.");
-                                    return;
-                                  }
-                              
-                                  const selectedFile = fileInput.files[0];  // Get the selected file
-                              
-                                  // Prepare FormData to send file
-                                  const formData = new FormData();
-                                  formData.append("file", selectedFile); // Attach file to FormData
-                              
-                                  await uploadFile(selectedFile, formData);
-                                });
-                              
-                                // Function to Upload File
-                                async function uploadFile(selectedFile, formData) {
-                                  const uploadUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${selectedFile.name}?${sasToken}`;
-                              
-                                  try {
-                                    const response = await fetch(uploadUrl, {
-                                      method: "PUT", // Using PUT instead of POST for uploading blobs
-                                      body: formData,
-                                    });
-                              
-                                    if (response.ok) {
-                                      alert("File uploaded successfully!");
-                                      await listFiles();  // Refresh file list after upload
-                                    } else {
-                                      alert("Upload failed.");
+                                    event.preventDefault(); // Prevent the form from submitting the usual way
+                            
+                                    // Check if a file is selected
+                                    if (!fileInput.files || fileInput.files.length === 0) {
+                                        alert("Please select a file.");
+                                        console.error("No file selected.");
+                                        return;
                                     }
-                              
-                                    fileInput.value = ""; // Clear the file input
-                                  } catch (error) {
-                                    console.error("Upload error:", error);
-                                    alert("Error uploading file.");
-                                  }
-                                }
-                              
+                            
+                                    const selectedFile = fileInput.files[0];  // Get the selected file
+                            
+                                    // Prepare FormData to send file
+                                    const formData = new FormData();
+                                    formData.append("file", selectedFile); // Attach file to FormData
+                            
+                                    // Function to upload file
+                                    async function uploadFile() {
+                                        const uploadUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${selectedFile.name}?${sasToken}`;
+                            
+                                        const response = await fetch(uploadUrl, {
+                                            method: "PUT", // Using PUT to upload the file to blob storage
+                                            headers: {
+                                                "x-ms-blob-type": "BlockBlob", // Set the blob type
+                                                "Content-Type": selectedFile.type, // Set the file type
+                                            },
+                                            body: selectedFile, // Directly send the file as body, not FormData
+                                        });
+                            
+                                        if (response.ok) {
+                                            alert("File uploaded successfully!");
+                                            listFiles(); // Call listFiles after successful upload
+                                        } else {
+                                            alert("Upload failed.");
+                                        }
+                            
+                                        fileInput.value = ""; // Clear the file input
+                                    }
+                            
+                                    // Call the uploadFile function to upload the file
+                                    uploadFile();
+                                });
+                            
                                 // Function to List Files
                                 async function listFiles() {
-                                  const listUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}?restype=container&comp=list&${sasToken}`;
-                              
-                                  try {
-                                    const response = await fetch(listUrl);
+                                    const listUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}?restype=container&comp=list&${sasToken}`;
+                                    const response = await fetch(listUrl, { cache: "no-store" });
                                     const text = await response.text();
                                     const parser = new DOMParser();
                                     const xml = parser.parseFromString(text, "text/xml");
                                     const blobs = xml.getElementsByTagName("Name");
-                              
+                            
                                     const fileList = document.getElementById("fileList");
                                     fileList.innerHTML = ""; // Clear the list before adding new items
-                              
+                            
                                     for (let i = 0; i < blobs.length; i++) {
-                                      const fileName = blobs[i].textContent;
-                                      const fileUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${fileName}?${sasToken}`;
-                              
-                                      const listItem = document.createElement("li");
-                                      listItem.innerHTML = `
-                                        <a href="${fileUrl}" target="_blank">${fileName}</a>
-                                        <button onclick="deleteFile('${fileName}')">Delete</button>
-                                      `;
-                                      fileList.appendChild(listItem);
+                                        const fileName = blobs[i].textContent;
+                                        const fileUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${fileName}?${sasToken}`;
+                            
+                                        const listItem = document.createElement("li");
+                                        listItem.innerHTML = `
+                                            <a href="${fileUrl}" target="_blank">${fileName}</a>
+                                            <button onclick="deleteFile('${fileName}')">Delete</button>
+                                        `;
+                                        fileList.appendChild(listItem);
                                     }
-                                  } catch (error) {
-                                    console.error("List files error:", error);
-                                    alert("Error fetching file list.");
-                                  }
                                 }
-                              
+                            
                                 // Function to Delete File
                                 async function deleteFile(fileName) {
-                                  const deleteUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${fileName}?${sasToken}`;
-                              
-                                  try {
+                                    const deleteUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${fileName}?${sasToken}`;
+                            
                                     const response = await fetch(deleteUrl, { method: "DELETE" });
-                              
+                            
                                     if (response.ok) {
-                                      alert("File deleted successfully!");
-                                      await listFiles();  // Refresh file list after deletion
+                                        alert("File deleted successfully!");
+                                        listFiles(); // Refresh file list after deletion
                                     } else {
-                                      alert("Delete failed.");
+                                        alert("Delete failed.");
                                     }
-                                  } catch (error) {
-                                    console.error("Delete error:", error);
-                                    alert("Error deleting file.");
-                                  }
                                 }
-                              
+                            
                                 // Load file list on page load
-                                window.onload = listFiles;
+                                listFiles();
                               </script>
+                            
                               
                             </div>
                           </div>
