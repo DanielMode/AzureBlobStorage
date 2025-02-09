@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/azure-storage/2.10.7/azure-storage.blob.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@azure/storage-blob@12.15.0/dist/index.js"></script>
     <title>DMS</title>
     <!--
 
@@ -325,143 +325,135 @@ https://www.tooplate.com/view/2097-pop
                               <h5>Stored Documents</h5>
                               <div id="fileList"></div>
                               <script>
-                                let blobService;
-                                const containerName = 'documents'; // Change this to your actual container name
-                        
-                                // Initialize Azure Blob Service with SAS Token
-                                function initialize() {
-                                    const sasToken = document.getElementById('sasToken').value.trim();
-                                    if (!sasToken) {
-                                        alert("Please enter a valid SAS token.");
-                                        return;
-                                    }
-                        
-                                    
-                                    blobService = AzureStorage.Blob.createBlobServiceWithSas(
-                                        'https://diseper.blob.core.windows.net',
-                                        sasToken
-                                    );
-                        
-                                    console.log("✅ Blob service initialized.");
-                                    listFiles(); // Load existing files after connecting
-                                }
-                        
-                                // Upload File to Azure Blob Storage
-                                function uploadFile() {
-                                    if (!blobService) {
-                                        alert('Please connect first using your SAS token.');
-                                        return;
-                                    }
-                        
-                                    const fileInput = document.getElementById('fileInput');
-                                    const file = fileInput.files[0];
-                        
-                                    if (!file) {
-                                        alert('Please select a file to upload.');
-                                        return;
-                                    }
-                        
-                                    console.log("⬆️ Uploading file:", file.name);
-                        
-                                    // Use createBlockBlobFromBrowserFile() to properly upload binary files
-                                    blobService.createBlockBlobFromBrowserFile(containerName, file.name, file, (error, result) => {
-                                        if (error) {
-                                            console.error("❌ Upload error:", error);
-                                            alert('Error uploading file: ' + error.message);
-                                            return;
-                                        }
-                        
-                                        console.log("✅ Upload successful:", result);
-                                        alert('File uploaded successfully!');
-                                        listFiles(); // Refresh file list after upload
-                                    });
-                                }
-                        
-                                // List Files in the Azure Blob Storage Container
-                                function listFiles(continuationToken = null) {
-                                    if (!blobService) {
-                                        alert('Please connect first using your SAS token.');
-                                        return;
-                                    }
-                        
-                                    console.log("📂 Fetching file list...");
-                        
-                                    blobService.listBlobsSegmented(containerName, continuationToken, (error, results) => {
-                                        if (error) {
-                                            console.error("❌ List files error:", error);
-                                            alert('Error listing files: ' + error.message);
-                                            return;
-                                        }
-                        
-                                        const fileList = document.getElementById('fileList');
-                                        fileList.innerHTML = '';
-                        
-                                        results.entries.forEach(blob => {
-                                            const div = document.createElement('div');
-                                            div.className = 'file-item';
-                                            div.innerHTML = `
-                                                <span>${blob.name}</span>
-                                                <button onclick="downloadFile('${blob.name}')">Download</button>
-                                                <button onclick="deleteFile('${blob.name}')">Delete</button>
-                                            `;
-                                            fileList.appendChild(div);
-                                        });
-                        
-                                        // Handle pagination if there are more results
-                                        if (results.continuationToken) {
-                                            listFiles(results.continuationToken);
-                                        }
-                        
-                                        console.log("✅ File list updated.");
-                                    });
-                                }
-                        
-                                // Download File from Azure Blob Storage
-                                function downloadFile(blobName) {
-                                    if (!blobService) {
-                                        alert('Please connect first using your SAS token.');
-                                        return;
-                                    }
-                        
-                                    console.log("⬇️ Downloading file:", blobName);
-                        
-                                    blobService.getBlobToText(containerName, blobName, (error, text) => {
-                                        if (error) {
-                                            console.error("❌ Download error:", error);
-                                            alert('Error downloading file: ' + error.message);
-                                            return;
-                                        }
-                        
-                                        const blob = new Blob([text], { type: 'text/plain' });
-                                        const url = window.URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
-                                        a.href = url;
-                                        a.download = blobName;
-                                        a.click();
-                                        window.URL.revokeObjectURL(url);
-                        
-                                        console.log("✅ Download successful.");
-                                    });
-                                }
-                                function deleteFile(blobName) {
-                                    if (!blobService) {
-                                        alert('Please connect first using your SAS token');
-                                        return;
-                                    }
-                        
-                                    if (!confirm(`Are you sure you want to delete "${blobName}"?`)) {
-                                        return;
-                                    }
-                        
-                                    blobService.deleteBlobIfExists(containerName, blobName, (error) => {
-                                        if (error) {
-                                            alert('Error deleting file: ' + error.message);
-                                            return;
-                                        }
-                                        alert('File deleted successfully!');
-                                        listFiles();
-                                    });
-                                }
+                                  // Global variables
+                                  let blobServiceClient;
+                                  const containerName = 'documents';
+                          
+                                  // Initialize the BlobServiceClient using SAS Token
+                                  function initialize() {
+                                      const sasToken = document.getElementById('sasToken').value.trim();
+                                      if (!sasToken.startsWith('sp=')) {
+                                          alert('Please enter a valid SAS token');
+                                          return;
+                                      }
+                                      blobServiceClient = new AzureStorage.BlobServiceClient(
+                                          `https://diseper.blob.core.windows.net?${sasToken}`
+                                      );
+                                  }
+                          
+                                  // Upload a file to the container
+                                  async function uploadFile() {
+                                      initialize();
+                                      if (!blobServiceClient) {
+                                          alert('Please connect first using your SAS token');
+                                          return;
+                                      }
+                          
+                                      const fileInput = document.getElementById('fileInput');
+                                      const file = fileInput.files[0];
+                                      if (!file) {
+                                          alert('Please select a file');
+                                          return;
+                                      }
+                          
+                                      const containerClient = blobServiceClient.getContainerClient(containerName);
+                                      const blockBlobClient = containerClient.getBlockBlobClient(file.name);
+                          
+                                      try {
+                                          const uploadBlobResponse = await blockBlobClient.uploadBrowserData(file);
+                                          alert('File uploaded successfully!');
+                                          listFiles();
+                                      } catch (error) {
+                                          alert('Error uploading file: ' + error.message);
+                                      }
+                                  }
+                          
+                                  // List files in the container
+                                  async function listFiles() {
+                                      if (!blobServiceClient) {
+                                          alert('Please connect first using your SAS token');
+                                          return;
+                                      }
+                          
+                                      const containerClient = blobServiceClient.getContainerClient(containerName);
+                                      let fileList = '';
+                          
+                                      try {
+                                          for await (const blob of containerClient.listBlobsFlat()) {
+                                              fileList += `
+                                                  <div>
+                                                      <span>${blob.name}</span>
+                                                      <button onclick="downloadFile('${blob.name}')">Download</button>
+                                                      <button onclick="deleteFile('${blob.name}')">Delete</button>
+                                                  </div>
+                                              `;
+                                          }
+                                          document.getElementById('fileList').innerHTML = fileList;
+                                      } catch (error) {
+                                          alert('Error listing files: ' + error.message);
+                                      }
+                                  }
+                          
+                                  // Download a file
+                                  async function downloadFile(blobName) {
+                                      if (!blobServiceClient) {
+                                          alert('Please connect first using your SAS token');
+                                          return;
+                                      }
+                          
+                                      const containerClient = blobServiceClient.getContainerClient(containerName);
+                                      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+                          
+                                      try {
+                                          const downloadBlockBlobResponse = await blockBlobClient.download();
+                                          const downloadedData = await streamToText(downloadBlockBlobResponse.readableStreamBody);
+                                          const blob = new Blob([downloadedData], { type: 'application/octet-stream' });
+                                          const url = window.URL.createObjectURL(blob);
+                                          const a = document.createElement('a');
+                                          a.href = url;
+                                          a.download = blobName;
+                                          a.click();
+                                          window.URL.revokeObjectURL(url);
+                                      } catch (error) {
+                                          alert('Error downloading file: ' + error.message);
+                                      }
+                                  }
+                          
+                                  // Delete a file
+                                  async function deleteFile(blobName) {
+                                      if (!blobServiceClient) {
+                                          alert('Please connect first using your SAS token');
+                                          return;
+                                      }
+                          
+                                      const containerClient = blobServiceClient.getContainerClient(containerName);
+                                      const blockBlobClient = containerClient.getBlockBlobClient(blobName);
+                          
+                                      try {
+                                          await blockBlobClient.delete();
+                                          alert('File deleted successfully!');
+                                          listFiles();
+                                      } catch (error) {
+                                          alert('Error deleting file: ' + error.message);
+                                      }
+                                  }
+                          
+                                  // Helper function to convert stream to text
+                                  async function streamToText(stream) {
+                                      const reader = stream.getReader();
+                                      let text = '';
+                                      const decoder = new TextDecoder();
+                                      let done, value;
+                                      while (!done) {
+                                          ({ done, value } = await reader.read());
+                                          text += decoder.decode(value, { stream: true });
+                                      }
+                                      text += decoder.decode();
+                                      return text;
+                                  }
+                          
+                                  // Load files on page load
+                                  window.onload = listFiles;
                               </script>
                             
                               
