@@ -6,6 +6,7 @@
     <title>Azure Blob Storage Upload and List Files</title>
     <!-- Using the latest Azure SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@azure/storage-blob@12.17.0/dist/index.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@azure/identity@2.1.0/dist/index.min.js"></script>
 </head>
 <body>
 
@@ -23,6 +24,8 @@
     <div id="fileList"></div>
 
     <script>
+        
+        const { BlobServiceClient } = Azure.StorageBlob;
         // Global variables
         let blobServiceClient;
         const containerName = 'documents';
