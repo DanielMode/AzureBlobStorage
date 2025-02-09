@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Azure Blob Storage Upload and List Files</title>
-    <script src="https://cdn.jsdelivr.net/npm/@azure/storage-blob@12.15.0/dist/index.min.js"></script>
+    <!-- Using the latest Azure SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@azure/storage-blob@12.17.0/dist/index.min.js"></script>
 </head>
 <body>
 
@@ -12,6 +13,7 @@
 
     <label for="sasToken">SAS Token:</label>
     <input type="text" id="sasToken" placeholder="Enter SAS token" />
+    <button id="connectButton">Connect</button>
 
     <h2>Upload File</h2>
     <input type="file" id="fileInput" />
@@ -24,29 +26,35 @@
         // Global variables
         let blobServiceClient;
         const containerName = 'documents';
+        const accountName = 'diseper'; // Your storage account name
 
         // Initialize the BlobServiceClient using SAS Token
-        function initialize(sasToken) {
-            console.log("SAS Token Entered:", sasToken);  // Check what is captured
-            if (!sasToken.startsWith('sp=')) {
-                alert('Please enter a valid SAS token');
-                return;
-            }
-            blobServiceClient = new Azure.Storage.BlobServiceClient(
-                `https://diseper.blob.core.windows.net?${sasToken}`
-            );
-            console.log("BlobServiceClient initialized.");
-        }
-
-        // Upload a file to the container
-        async function uploadFile() {
+        function initialize() {
             const sasToken = document.getElementById('sasToken').value.trim();
-            console.log("Captured SAS Token in uploadFile():", sasToken);  // Debugging the SAS Token
+            console.log("SAS Token Entered:", sasToken);
+
             if (!sasToken) {
                 alert('Please enter a valid SAS token');
                 return;
             }
-            initialize(sasToken); // Initialize only if SAS token is valid
+
+            try {
+                blobServiceClient = new BlobServiceClient(
+                    `https://${accountName}.blob.core.windows.net?${sasToken}`
+                );
+                console.log("BlobServiceClient initialized.");
+                listFiles(); // Only list files after successful connection
+            } catch (error) {
+                alert('Error initializing blob service: ' + error.message);
+            }
+        }
+
+        // Upload a file to the container
+        async function uploadFile() {
+            if (!blobServiceClient) {
+                alert('Please connect first using your SAS token');
+                return;
+            }
 
             const fileInput = document.getElementById('fileInput');
             const file = fileInput.files[0];
@@ -55,11 +63,12 @@
                 return;
             }
 
-            const containerClient = blobServiceClient.getContainerClient(containerName);
-            const blockBlobClient = containerClient.getBlockBlobClient(file.name);
-
             try {
-                const uploadBlobResponse = await blockBlobClient.uploadBrowserData(file);
+                const containerClient = blobServiceClient.getContainerClient(containerName);
+                const blockBlobClient = containerClient.getBlockBlobClient(file.name);
+                const response = await blockBlobClient.uploadBrowserData(file, {
+                    onProgress: ev => console.log(`Uploaded ${ev.loadedBytes} bytes`)
+                });
                 alert('File uploaded successfully!');
                 listFiles();
             } catch (error) {
@@ -70,14 +79,14 @@
         // List files in the container
         async function listFiles() {
             if (!blobServiceClient) {
-                alert('Please connect first using your SAS token');
+                console.log('Blob service not initialized');
                 return;
             }
 
-            const containerClient = blobServiceClient.getContainerClient(containerName);
-            let fileList = '';
-
             try {
+                const containerClient = blobServiceClient.getContainerClient(containerName);
+                let fileList = '';
+
                 for await (const blob of containerClient.listBlobsFlat()) {
                     fileList += `
                         <div>
@@ -100,19 +109,20 @@
                 return;
             }
 
-            const containerClient = blobServiceClient.getContainerClient(containerName);
-            const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-
             try {
-                const downloadBlockBlobResponse = await blockBlobClient.download();
-                const downloadedData = await streamToText(downloadBlockBlobResponse.readableStreamBody);
-                const blob = new Blob([downloadedData], { type: 'application/octet-stream' });
+                const containerClient = blobServiceClient.getContainerClient(containerName);
+                const blobClient = containerClient.getBlobClient(blobName);
+                const response = await blobClient.download();
+                const blob = await response.blobBody;
+                
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
                 a.download = blobName;
+                document.body.appendChild(a);
                 a.click();
                 window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
             } catch (error) {
                 alert('Error downloading file: ' + error.message);
             }
@@ -125,10 +135,9 @@
                 return;
             }
 
-            const containerClient = blobServiceClient.getContainerClient(containerName);
-            const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-
             try {
+                const containerClient = blobServiceClient.getContainerClient(containerName);
+                const blockBlobClient = containerClient.getBlockBlobClient(blobName);
                 await blockBlobClient.delete();
                 alert('File deleted successfully!');
                 listFiles();
@@ -137,25 +146,9 @@
             }
         }
 
-        // Helper function to convert stream to text
-        async function streamToText(stream) {
-            const reader = stream.getReader();
-            let text = '';
-            const decoder = new TextDecoder();
-            let done, value;
-            while (!done) {
-                ({ done, value } = await reader.read());
-                text += decoder.decode(value, { stream: true });
-            }
-            text += decoder.decode();
-            return text;
-        }
-
-        // Add event listener to upload button
+        // Add event listeners
+        document.getElementById('connectButton').addEventListener('click', initialize);
         document.getElementById('uploadButton').addEventListener('click', uploadFile);
-
-        // Load files on page load
-        window.onload = listFiles;
     </script>
 
 </body>
