@@ -322,11 +322,6 @@ https://www.tooplate.com/view/2097-pop
                               <h6>Stored Documents</h6>
                               <ul id="fileList"></ul>
                               <script>
-                                // Replace with your Azure Storage account details
-                                const storageAccount = "disep";
-                                const containerName = "documents";
-                                const sasToken = "sp=rwdl&st=2025-02-09T12:09:57Z&se=2025-04-10T19:09:57Z&spr=https&sv=2022-11-02&sr=c&sig=P1GoT0hKmnXdQzZbFV3K6ZcaL63L3%2BcNBxVEidNphnE%3D"; // Get from Azure Portal
-                            
                                 // Select the form and file input
                                 const form = document.getElementById("fileUploadForm");
                                 const fileInput = document.getElementById("fileInput");
@@ -341,7 +336,7 @@ https://www.tooplate.com/view/2097-pop
                                         console.error("No file selected.");
                                         return;
                                     }
-                            
+                                    
                                     const selectedFile = fileInput.files[0];  // Get the selected file
                             
                                     // Prepare FormData to send file
@@ -350,7 +345,18 @@ https://www.tooplate.com/view/2097-pop
                             
                                     // Function to upload file
                                     async function uploadFile() {
+                                        window.history.replaceState({}, document.title, window.location.pathname); // Prevents URL modification
+                                        const selectedFile = document.getElementById("fileInput").files[0];
+                                        if (!selectedFile) {
+                                            alert("Please select a file.");
+                                            return;
+                                        }
+                                        const storageAccount = "disep";
+                                        const containerName = "documents";
+                                        const sasToken = "sp=rwdl&st=2025-02-09T12:09:57Z&se=2025-04-10T19:09:57Z&spr=https&sv=2022-11-02&sr=c&sig=P1GoT0hKmnXdQzZbFV3K6ZcaL63L3%2BcNBxVEidNphnE%3D"; // Get from Azure Portal
                                         const uploadUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${selectedFile.name}?${sasToken}`;
+                                      
+                                        console.log("Uploading to:", uploadUrl); // Debugging output
                             
                                         const response = await fetch(uploadUrl, {
                                             method: "PUT", // Using PUT to upload the file to blob storage
@@ -368,7 +374,7 @@ https://www.tooplate.com/view/2097-pop
                                             alert("Upload failed.");
                                         }
                             
-                                        fileInput.value = ""; // Clear the file input
+                                        document.getElementById("fileInput").value = ""; // Clear the file input
                                     }
                             
                                     // Call the uploadFile function to upload the file
