@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Azure Blob Storage Upload and List Files</title>
-    <script src="https://cdn.jsdelivr.net/npm/@azure/storage-blob@12.15.0/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@azure/storage-blob@12.15.0/dist/index.min.js"></script>
 </head>
 <body>
 
@@ -32,7 +32,7 @@
                 alert('Please enter a valid SAS token');
                 return;
             }
-            blobServiceClient = new AzureStorage.BlobServiceClient(
+            blobServiceClient = new Azure.Storage.BlobServiceClient(
                 `https://diseper.blob.core.windows.net?${sasToken}`
             );
             console.log("BlobServiceClient initialized.");
