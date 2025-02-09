@@ -332,6 +332,8 @@ https://www.tooplate.com/view/2097-pop
                                   // Initialize the BlobServiceClient using SAS Token
                                   function initialize() {
                                       const sasToken = document.getElementById('sasToken').value.trim();
+                                      console.log("SAS Token Entered:", sasToken);
+
                                       if (!sasToken.startsWith('sp=')) {
                                           alert('Please enter a valid SAS token');
                                           return;
