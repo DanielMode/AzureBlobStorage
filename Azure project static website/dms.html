@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Blob Storage DMS</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-gray-200 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-2xl p-6 bg-gray-800 rounded-lg shadow-lg">
+        <h2 class="text-2xl font-semibold text-center text-white mb-4">Document Management System</h2>
+        
+        <!-- Upload Form -->
+        <div class="flex items-center space-x-3">
+            <input type="file" id="fileInput" class="bg-gray-700 p-2 rounded w-full text-white">
+            <button onclick="uploadFile()" class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-white">Upload</button>
+        </div>
+
+        <!-- File List -->
+        <h3 class="text-lg font-medium mt-6">Files:</h3>
+        <ul id="fileList" class="mt-2 space-y-2"></ul>
+    </div>
+
+    <script>
+        const storageAccount = "diseper";
+        const containerName = "documents";
+        const sasToken = "YOUR_SAS_TOKEN_HERE"; // Replace with actual SAS token
+
+        async function uploadFile() {
+            const fileInput = document.getElementById("fileInput");
+            if (fileInput.files.length === 0) {
+                alert("Please select a file.");
+                return;
+            }
+            const file = fileInput.files[0];
+            const uploadUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${file.name}?${sasToken}`;
+            const response = await fetch(uploadUrl, {
+                method: "PUT",
+                headers: { "x-ms-blob-type": "BlockBlob" },
+                body: file
+            });
+            if (response.ok) {
+                alert("File uploaded successfully!");
+                listFiles();
+            } else {
+                alert("Upload failed.");
+            }
+        }
+
+        async function listFiles() {
+            const listUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}?restype=container&comp=list&${sasToken}`;
+            const response = await fetch(listUrl);
+            const text = await response.text();
+            const parser = new DOMParser();
+            const xml = parser.parseFromString(text, "text/xml");
+            const blobs = xml.getElementsByTagName("Name");
+            const fileList = document.getElementById("fileList");
+            fileList.innerHTML = "";
+            for (let i = 0; i < blobs.length; i++) {
+                const fileName = blobs[i].textContent;
+                const fileUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${fileName}?${sasToken}`;
+                const listItem = document.createElement("li");
+                listItem.className = "bg-gray-700 p-2 rounded flex justify-between items-center";
+                listItem.innerHTML = `
+                    <a href="${fileUrl}" target="_blank" class="text-blue-400 hover:underline">${fileName}</a>
+                    <button onclick="deleteFile('${fileName}')" class="bg-red-600 hover:bg-red-500 px-3 py-1 rounded text-white">Delete</button>
+                `;
+                fileList.appendChild(listItem);
+            }
+        }
+
+        async function deleteFile(fileName) {
+            const deleteUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${fileName}?${sasToken}`;
+            const response = await fetch(deleteUrl, { method: "DELETE" });
+            if (response.ok) {
+                alert("File deleted successfully!");
+                listFiles();
+            } else {
+                alert("Delete failed.");
+            }
+        }
+
+        listFiles();
+    </script>
+</body>
+</html>
