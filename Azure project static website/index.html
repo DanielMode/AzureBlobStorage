@@ -336,9 +336,9 @@ https://www.tooplate.com/view/2097-pop
                                         return;
                                     }
                         
-                                    // Ensure the SAS token URL includes the container name
+                                    
                                     blobService = AzureStorage.Blob.createBlobServiceWithSas(
-                                        'https://diseper.z13.web.core.windows.net/' + containerName, 
+                                        'https://diseper.blob.core.windows.net',
                                         sasToken
                                     );
                         
