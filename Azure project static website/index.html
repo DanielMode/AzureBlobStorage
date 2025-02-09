@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/azure-storage/2.10.7/azure-storage.blob.min.js"></script>
     <title>DMS</title>
     <!--
 
@@ -311,122 +311,157 @@ https://www.tooplate.com/view/2097-pop
                           </div>
                           <div class="row">
                             <div class="col-12">
-                              <h6>Upload a Document</h6>
-                              <form id="fileUploadForm" enctype="multipart/form-data">
-                                <input type="file" name="file" id="fileInput" required>
-                                <button type="submit">Upload</button>
-                              </form>
-                            
-                              <br>
-                              <br>
-                              <h6>Stored Documents</h6>
-                              <ul id="fileList"></ul>
+                              <!-- SAS Token Input -->
+                              <label for="sasToken">Enter SAS Token:</label>
+                              <input type="text" id="sasToken" placeholder="Paste your SAS token">
+                              <button onclick="initialize()">Connect</button>
+                              <br><br>
+                              <!-- File Upload Section -->
+                              <h5>Upload File</h5>
+                              <input type="file" id="fileInput">
+                              <button onclick="uploadFile()">Upload</button>
+                              <br><br>
+                              <!-- Stored Files Section -->
+                              <h5>Stored Documents</h5>
+                              <div id="fileList"></div>
                               <script>
-                                const storageAccount = "disep";
-                                const containerName = "documents";
-                                const sasToken = "sp=rwdl&st=2025-02-09T12:09:57Z&se=2025-04-10T19:09:57Z&spr=https&sv=2022-11-02&sr=c&sig=P1GoT0hKmnXdQzZbFV3K6ZcaL63L3%2BcNBxVEidNphnE%3D";
-                                
-                                
-                                // Select the form and file input
-                                const form = document.getElementById("fileUploadForm");
-                                const fileInput = document.getElementById("fileInput");
-                            
-                                // Add event listener to handle the form submission
-                                form.addEventListener("submit", async (event) => {
-                                    event.preventDefault(); // Prevent the form from submitting the usual way
-                            
-                                    // Check if a file is selected
-                                    if (!fileInput.files || fileInput.files.length === 0) {
-                                        alert("Please select a file.");
-                                        console.error("No file selected.");
+                                let blobService;
+                                const containerName = 'documents'; // Change this to your actual container name
+                        
+                                // Initialize Azure Blob Service with SAS Token
+                                function initialize() {
+                                    const sasToken = document.getElementById('sasToken').value.trim();
+                                    if (!sasToken) {
+                                        alert("Please enter a valid SAS token.");
                                         return;
                                     }
-                                    
-                                    const selectedFile = fileInput.files[0];  // Get the selected file
-                            
-                                    // Prepare FormData to send file
-                                    const formData = new FormData();
-                                    formData.append("file", selectedFile); // Attach file to FormData
-                            
-                                    // Function to upload file
-                                    async function uploadFile() {
-                                        window.history.replaceState({}, document.title, window.location.pathname); // Prevents URL modification
-                                        const selectedFile = document.getElementById("fileInput").files[0];
-                                        if (!selectedFile) {
-                                            alert("Please select a file.");
+                        
+                                    // Ensure the SAS token URL includes the container name
+                                    blobService = AzureStorage.Blob.createBlobServiceWithSas(
+                                        'https://yourstorageaccount.blob.core.windows.net/' + containerName, 
+                                        sasToken
+                                    );
+                        
+                                    console.log("✅ Blob service initialized.");
+                                    listFiles(); // Load existing files after connecting
+                                }
+                        
+                                // Upload File to Azure Blob Storage
+                                function uploadFile() {
+                                    if (!blobService) {
+                                        alert('Please connect first using your SAS token.');
+                                        return;
+                                    }
+                        
+                                    const fileInput = document.getElementById('fileInput');
+                                    const file = fileInput.files[0];
+                        
+                                    if (!file) {
+                                        alert('Please select a file to upload.');
+                                        return;
+                                    }
+                        
+                                    console.log("⬆️ Uploading file:", file.name);
+                        
+                                    // Use createBlockBlobFromBrowserFile() to properly upload binary files
+                                    blobService.createBlockBlobFromBrowserFile(containerName, file.name, file, (error, result) => {
+                                        if (error) {
+                                            console.error("❌ Upload error:", error);
+                                            alert('Error uploading file: ' + error.message);
                                             return;
                                         }
-                                        const storageAccount = "disep";
-                                        const containerName = "documents";
-                                        const sasToken = "sp=rwdl&st=2025-02-09T12:09:57Z&se=2025-04-10T19:09:57Z&spr=https&sv=2022-11-02&sr=c&sig=P1GoT0hKmnXdQzZbFV3K6ZcaL63L3%2BcNBxVEidNphnE%3D"; // Get from Azure Portal
-                                        const uploadUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${selectedFile.name}?${sasToken}`;
-                                      
-                                        console.log("Uploading to:", uploadUrl); // Debugging output
-                            
-                                        const response = await fetch(uploadUrl, {
-                                            method: "PUT", // Using PUT to upload the file to blob storage
-                                            headers: {
-                                                "x-ms-blob-type": "BlockBlob", // Set the blob type
-                                                "Content-Type": selectedFile.type, // Set the file type
-                                            },
-                                            body: selectedFile, // Directly send the file as body, not FormData
-                                        });
-                            
-                                        if (response.ok) {
-                                            alert("File uploaded successfully!");
-                                            listFiles(); // Call listFiles after successful upload
-                                        } else {
-                                            alert("Upload failed.");
+                        
+                                        console.log("✅ Upload successful:", result);
+                                        alert('File uploaded successfully!');
+                                        listFiles(); // Refresh file list after upload
+                                    });
+                                }
+                        
+                                // List Files in the Azure Blob Storage Container
+                                function listFiles(continuationToken = null) {
+                                    if (!blobService) {
+                                        alert('Please connect first using your SAS token.');
+                                        return;
+                                    }
+                        
+                                    console.log("📂 Fetching file list...");
+                        
+                                    blobService.listBlobsSegmented(containerName, continuationToken, (error, results) => {
+                                        if (error) {
+                                            console.error("❌ List files error:", error);
+                                            alert('Error listing files: ' + error.message);
+                                            return;
                                         }
-                            
-                                        document.getElementById("fileInput").value = ""; // Clear the file input
-                                    }
-                            
-                                    // Call the uploadFile function to upload the file
-                                    uploadFile();
-                                });
-                            
-                                // Function to List Files
-                                async function listFiles() {
-                                    const listUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}?restype=container&comp=list&${sasToken}`;
-                                    const response = await fetch(listUrl, { cache: "no-store" });
-                                    const text = await response.text();
-                                    const parser = new DOMParser();
-                                    const xml = parser.parseFromString(text, "text/xml");
-                                    const blobs = xml.getElementsByTagName("Name");
-                            
-                                    const fileList = document.getElementById("fileList");
-                                    fileList.innerHTML = ""; // Clear the list before adding new items
-                            
-                                    for (let i = 0; i < blobs.length; i++) {
-                                        const fileName = blobs[i].textContent;
-                                        const fileUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${fileName}?${sasToken}`;
-                            
-                                        const listItem = document.createElement("li");
-                                        listItem.innerHTML = `
-                                            <a href="${fileUrl}" target="_blank">${fileName}</a>
-                                            <button onclick="deleteFile('${fileName}')">Delete</button>
-                                        `;
-                                        fileList.appendChild(listItem);
-                                    }
+                        
+                                        const fileList = document.getElementById('fileList');
+                                        fileList.innerHTML = '';
+                        
+                                        results.entries.forEach(blob => {
+                                            const div = document.createElement('div');
+                                            div.className = 'file-item';
+                                            div.innerHTML = `
+                                                <span>${blob.name}</span>
+                                                <button onclick="downloadFile('${blob.name}')">Download</button>
+                                                <button onclick="deleteFile('${blob.name}')">Delete</button>
+                                            `;
+                                            fileList.appendChild(div);
+                                        });
+                        
+                                        // Handle pagination if there are more results
+                                        if (results.continuationToken) {
+                                            listFiles(results.continuationToken);
+                                        }
+                        
+                                        console.log("✅ File list updated.");
+                                    });
                                 }
-                            
-                                // Function to Delete File
-                                async function deleteFile(fileName) {
-                                    const deleteUrl = `https://${storageAccount}.blob.core.windows.net/${containerName}/${fileName}?${sasToken}`;
-                            
-                                    const response = await fetch(deleteUrl, { method: "DELETE" });
-                            
-                                    if (response.ok) {
-                                        alert("File deleted successfully!");
-                                        listFiles(); // Refresh file list after deletion
-                                    } else {
-                                        alert("Delete failed.");
+                        
+                                // Download File from Azure Blob Storage
+                                function downloadFile(blobName) {
+                                    if (!blobService) {
+                                        alert('Please connect first using your SAS token.');
+                                        return;
                                     }
+                        
+                                    console.log("⬇️ Downloading file:", blobName);
+                        
+                                    blobService.getBlobToText(containerName, blobName, (error, text) => {
+                                        if (error) {
+                                            console.error("❌ Download error:", error);
+                                            alert('Error downloading file: ' + error.message);
+                                            return;
+                                        }
+                        
+                                        const blob = new Blob([text], { type: 'text/plain' });
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = blobName;
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                        
+                                        console.log("✅ Download successful.");
+                                    });
                                 }
-                            
-                                // Load file list on page load
-                                listFiles();
+                                function deleteFile(blobName) {
+                                    if (!blobService) {
+                                        alert('Please connect first using your SAS token');
+                                        return;
+                                    }
+                        
+                                    if (!confirm(`Are you sure you want to delete "${blobName}"?`)) {
+                                        return;
+                                    }
+                        
+                                    blobService.deleteBlobIfExists(containerName, blobName, (error) => {
+                                        if (error) {
+                                            alert('Error deleting file: ' + error.message);
+                                            return;
+                                        }
+                                        alert('File deleted successfully!');
+                                        listFiles();
+                                    });
+                                }
                               </script>
                             
                               
